@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-HK">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>六合彩「17 注聰明組合」號碼產生器 & 實測對獎機</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter & Noto Sans TC -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Inter"', '"Noto Sans TC"', 'sans-serif'],
+          },
+          colors: {
+            hkjc: {
+              dark: '#063729',
+              primary: '#0b5c44',
+              light: '#137c5d',
+              gold: '#d4af37',
+              goldLight: '#f3e5ab',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* 自訂捲軸與波珠微光效果 */
+    .ball-red {
+      background: radial-gradient(circle at 30% 30%, #ff6b6b, #dc2626 65%, #991b1b);
+      box-shadow: 0 3px 6px rgba(220, 38, 38, 0.35), inset 0 1px 2px rgba(255, 255, 255, 0.6);
+    }
+    .ball-blue {
+      background: radial-gradient(circle at 30% 30%, #60a5fa, #2563eb 65%, #1e40af);
+      box-shadow: 0 3px 6px rgba(37, 99, 235, 0.35), inset 0 1px 2px rgba(255, 255, 255, 0.6);
+    }
+    .ball-green {
+      background: radial-gradient(circle at 30% 30%, #4ade80, #16a34a 65%, #166534);
+      box-shadow: 0 3px 6px rgba(22, 163, 74, 0.35), inset 0 1px 2px rgba(255, 255, 255, 0.6);
+    }
+    .ball-highlight-core {
+      outline: 3px solid #f59e0b;
+      outline-offset: 2px;
+    }
+    .ball-matched {
+      outline: 3px solid #eab308;
+      outline-offset: 2px;
+      transform: scale(1.08);
+    }
+    .ball-matched-special {
+      outline: 3px dashed #ec4899;
+      outline-offset: 2px;
+      transform: scale(1.08);
+    }
+    @keyframes popIn {
+      0% { transform: scale(0.8); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .animate-pop {
+      animation: popIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col">
+
+  <!-- 頂部通知 Toast 容器（取代 alert） -->
+  <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- 頂部主視覺 Header -->
+  <header class="bg-gradient-to-r from-hkjc-dark via-hkjc-primary to-hkjc-dark text-white shadow-lg border-b-4 border-hkjc-gold">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-hkjc-gold/40 text-hkjc-goldLight text-xs font-semibold mb-2">
+            <span>英國巴拉福特大學教職員流傳算法</span>
+            <span>•</span>
+            <span>100% 覆蓋 1–49 號</span>
+          </div>
+          <h1 class="text-2xl sm:text-3xl font-black tracking-tight flex items-center gap-2">
+            <span>六合彩「17 注聰明組合」產生器</span>
+          </h1>
+          <p class="text-emerald-100/90 text-sm mt-1">
+            僅需 17 注單式（全注 $170 / 半注 $85），透過四階段輪轉結構買齊全部 49 個號碼。
+          </p>
+        </div>
+
+        <!-- 主要操作按鈕群 -->
+        <div class="flex flex-wrap items-center gap-2.5">
+          <button id="btn-generate" type="button" class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-hkjc-gold hover:bg-amber-400 text-hkjc-dark font-extrabold text-sm shadow-md hover:shadow-lg transition active:scale-95 cursor-pointer">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <span>一鍵重新生成 17 注</span>
+          </button>
+
+          <button id="btn-copy" type="button" class="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/15 hover:bg-white/25 border border-white/25 text-white font-semibold text-sm transition active:scale-95 cursor-pointer">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+            <span>一鍵複製全部號碼</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主內容區塊 -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full space-y-6">
+
+    <!-- 關鍵數據摘要列 -->
+    <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80 flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500">總注數 / 投注額</p>
+          <p class="text-xl sm:text-2xl font-black text-slate-900 mt-0.5">17 注 <span class="text-sm font-bold text-hkjc-primary">($170)</span></p>
+          <p class="text-[11px] text-slate-400 mt-0.5">每注 $5 半注則為 $85</p>
+        </div>
+        <div class="w-10 h-10 rounded-xl bg-emerald-50 text-hkjc-primary flex items-center justify-center font-bold text-lg">$</div>
+      </div>
+
+      <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80 flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500">號碼覆蓋率</p>
+          <p id="stat-coverage" class="text-xl sm:text-2xl font-black text-emerald-600 mt-0.5">49 / 49 號</p>
+          <p class="text-[11px] text-slate-400 mt-0.5">100% 買齊不遺漏</p>
+        </div>
+        <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-lg">✓</div>
+      </div>
+
+      <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80 flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500">單號出現次數</p>
+          <p id="stat-frequency" class="text-xl sm:text-2xl font-black text-slate-900 mt-0.5">2 ~ 3 次</p>
+          <p class="text-[11px] text-slate-400 mt-0.5">共 102 個選號位置</p>
+        </div>
+        <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-lg">#</div>
+      </div>
+
+      <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80 flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500">波色分佈 (紅/藍/綠)</p>
+          <p id="stat-colors" class="text-lg sm:text-xl font-black text-slate-900 mt-0.5">-- / -- / --</p>
+          <p class="text-[11px] text-slate-400 mt-0.5">按標準香港六合彩波色</p>
+        </div>
+        <div class="flex -space-x-1">
+          <span class="w-4 h-4 rounded-full bg-red-600 border border-white"></span>
+          <span class="w-4 h-4 rounded-full bg-blue-600 border border-white"></span>
+          <span class="w-4 h-4 rounded-full bg-green-600 border border-white"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 規則說明摺疊面板 -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+      <button id="btn-toggle-rules" type="button" class="w-full px-5 py-3.5 flex items-center justify-between text-left hover:bg-slate-50 transition cursor-pointer">
+        <div class="flex items-center gap-2.5">
+          <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-hkjc-primary/10 text-hkjc-primary text-xs font-bold">i</span>
+          <span class="font-bold text-slate-800 text-sm sm:text-base">數學分配邏輯與規則拆解（點擊展開 / 收合）</span>
+        </div>
+        <svg id="icon-rules-chevron" class="w-5 h-5 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      <div id="rules-content" class="hidden px-5 pb-5 pt-2 border-t border-slate-100 text-sm text-slate-600 space-y-3">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/70">
+            <div class="font-bold text-hkjc-primary mb-1">階段一：第 1 – 8 注</div>
+            <p class="text-xs leading-relaxed">從 1 至 49 中隨機挑選 <strong>48 個不重複號碼</strong>，平均分成 8 組單式（8 × 6 = 48 號）。此時僅餘下 1 個號碼尚未出現。</p>
+          </div>
+          <div class="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200/80">
+            <div class="font-bold text-amber-800 mb-1">階段二：第 9 注（補齊全餐）</div>
+            <p class="text-xs leading-relaxed">放入階段一未出現的<strong>「第 49 個號碼」</strong>（金框標示），再從前 48 個號碼中隨機搭配 5 個不重複號碼，完成第一輪全覆蓋。</p>
+          </div>
+          <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/70">
+            <div class="font-bold text-hkjc-primary mb-1">階段三：第 10 – 16 注</div>
+            <p class="text-xs leading-relaxed">剔除第 9 注那 5 個任意搭配號碼後，在餘下 <strong>44 個號碼</strong>中任選 42 個，分成 7 組不重複單式（7 × 6 = 42 號），剩餘 2 個號碼。</p>
+          </div>
+          <div class="p-3.5 rounded-xl bg-purple-50/70 border border-purple-200/80">
+            <div class="font-bold text-purple-800 mb-1">階段四：第 17 注（完美收尾）</div>
+            <p class="text-xs leading-relaxed">將階段三最後剩餘的<strong>「2 個號碼」</strong>（金框標示）放入，再從其餘 47 個號碼中隨機配搭 4 個不重複號碼湊成最後一注。</p>
+          </div>
+        </div>
+        <p class="text-xs text-slate-500 bg-slate-100 px-3 py-2 rounded-lg">
+          <strong>理性提示：</strong>此組合保證 49 個號碼全部出現至少 2 次，適合合資或低成本「食全餐」娛樂；但因非複式投注，無法保證 6 個攪出號碼同時落在同一注內，請量力而為。
+        </p>
+      </div>
+    </section>
+
+    <!-- 主工作區：左側 17 注組合列表 + 右側 覆蓋率與模擬對獎 -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+      <!-- 左側 7 欄：17 注組合明細 -->
+      <div class="lg:col-span-7 space-y-5">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h2 class="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+            <span>17 注聰明組合明細</span>
+            <span class="text-xs font-medium px-2.5 py-0.5 rounded-full bg-slate-200/80 text-slate-700">每注由小到大排序</span>
+          </h2>
+          <div class="flex items-center gap-3 text-xs text-slate-500">
+            <span class="inline-flex items-center gap-1.5">
+              <span class="w-3 h-3 rounded-full border-2 border-amber-500 inline-block"></span>
+              <span>關鍵核心號碼</span>
+            </span>
+            <span class="inline-flex items-center gap-1.5">
+              <span class="w-3 h-3 rounded-full bg-yellow-400 inline-block"></span>
+              <span>對中攪珠號碼</span>
+            </span>
+          </div>
+        </div>
+
+        <!-- 四階段卡片容器 -->
+        <div id="tickets-container" class="space-y-5">
+          <!-- 由 JS 動態渲染 -->
+        </div>
+      </div>
+
+      <!-- 右側 5 欄：模擬攪珠對獎機 + 49 號覆蓋總覽表 -->
+      <div class="lg:col-span-5 space-y-6">
+
+        <!-- 互動模擬對獎機 -->
+        <section class="bg-white rounded-2xl shadow-sm border border-slate-200/90 overflow-hidden">
+          <div class="bg-slate-900 text-white px-5 py-4 flex items-center justify-between">
+            <div>
+              <h3 class="font-extrabold text-base flex items-center gap-2">
+                <span>實測模擬攪珠對獎機</span>
+              </h3>
+              <p class="text-xs text-slate-400 mt-0.5">測試這 17 注在模擬開獎下的真實中獎表現</p>
+            </div>
+            <span class="px-2.5 py-1 rounded-lg bg-hkjc-gold/20 text-hkjc-goldLight text-xs font-bold border border-hkjc-gold/30">
+              6 + 1 特別號
+            </span>
+          </div>
+
+          <div class="p-5 space-y-4">
+            <!-- 控制按鈕 -->
+            <div class="grid grid-cols-2 gap-2.5">
+              <button id="btn-sim-draw" type="button" class="px-4 py-2.5 rounded-xl bg-hkjc-primary hover:bg-hkjc-light text-white font-bold text-sm shadow-sm transition active:scale-95 cursor-pointer flex items-center justify-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>隨機模擬攪珠</span>
+              </button>
+
+              <button id="btn-toggle-manual" type="button" class="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition active:scale-95 cursor-pointer">
+                手動輸入號碼
+              </button>
+            </div>
+
+            <!-- 手動輸入區（預設隱藏） -->
+            <div id="manual-draw-panel" class="hidden p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+              <div class="text-xs font-bold text-slate-700">輸入 6 個正選號碼 + 1 個特別號碼 (1–49 不重複)：</div>
+              <div class="grid grid-cols-7 gap-1.5">
+                <input type="number" min="1" max="49" placeholder="1" class="manual-num w-full text-center py-1.5 rounded-lg border border-slate-300 text-sm font-bold focus:outline-none focus:border-hkjc-primary" />
+                <input type="number" min="1" max="49" placeholder="2" class="manual-num w-full text-center py-1.5 rounded-lg border border-slate-300 text-sm font-bold focus:outline-none focus:border-hkjc-primary" />
+                <input type="number" min="1" max="49" placeholder="3" class="manual-num w-full text-center py-1.5 rounded-lg border border-slate-300 text-sm font-bold focus:outline-none focus:border-hkjc-primary" />
+                <input type="number" min="1" max="49" placeholder="4" class="manual-num w-full text-center py-1.5 rounded-lg border border-slate-300 text-sm font-bold focus:outline-none focus:border-hkjc-primary" />
+                <input type="number" min="1" max="49" placeholder="5" class="manual-num w-full text-center py-1.5 rounded-lg border border-slate-300 text-sm font-bold focus:outline-none focus:border-hkjc-primary" />
+                <input type="number" min="1" max="49" placeholder="6" class="manual-num w-full text-center py-1.5 rounded-lg border border-slate-300 text-sm font-bold focus:outline-none focus:border-hkjc-primary" />
+                <input type="number" min="1" max="49" placeholder="特" id="manual-special" class="w-full text-center py-1.5 rounded-lg border-2 border-pink-400 bg-pink-50 text-sm font-bold text-pink-700 focus:outline-none" />
+              </div>
+              <div class="flex justify-end gap-2">
+                <button id="btn-clear-draw" type="button" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-500 hover:bg-slate-200 cursor-pointer">清除對獎</button>
+                <button id="btn-apply-manual" type="button" class="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold cursor-pointer">套用並對獎</button>
+              </div>
+            </div>
+
+            <!-- 攪珠結果顯示區 -->
+            <div id="draw-result-box" class="rounded-xl bg-slate-50 border border-slate-200/80 p-4">
+              <div id="draw-empty-state" class="text-center py-4 text-xs text-slate-400">
+                點擊上方「隨機模擬攪珠」或「手動輸入號碼」進行實測對獎
+              </div>
+
+              <div id="draw-active-state" class="hidden space-y-4">
+                <div>
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">模擬開獎號碼</span>
+                    <button id="btn-reset-draw-top" type="button" class="text-xs text-slate-400 hover:text-slate-600 underline cursor-pointer">重設</button>
+                  </div>
+                  <div class="flex flex-wrap items-center gap-2" id="drawn-balls-display">
+                    <!-- JS 填入波珠 -->
+                  </div>
+                </div>
+
+                <!-- 派彩與損益統計 -->
+                <div class="grid grid-cols-3 gap-2 pt-3 border-t border-slate-200">
+                  <div class="bg-white p-2.5 rounded-xl border border-slate-200/70 text-center">
+                    <div class="text-[11px] text-slate-500">中獎注數</div>
+                    <div id="sim-win-count" class="text-base font-black text-slate-900 mt-0.5">0 注</div>
+                  </div>
+                  <div class="bg-white p-2.5 rounded-xl border border-slate-200/70 text-center">
+                    <div class="text-[11px] text-slate-500">預估總派彩</div>
+                    <div id="sim-prize-total" class="text-base font-black text-emerald-600 mt-0.5">$0</div>
+                  </div>
+                  <div class="bg-white p-2.5 rounded-xl border border-slate-200/70 text-center">
+                    <div class="text-[11px] text-slate-500">淨損益 ($170本)</div>
+                    <div id="sim-net-profit" class="text-base font-black text-rose-600 mt-0.5">-$170</div>
+                  </div>
+                </div>
+
+                <!-- 詳細中獎明細 -->
+                <div id="sim-prize-breakdown" class="text-xs space-y-1.5"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 49 個號碼覆蓋總覽表（熱力圖） -->
+        <section class="bg-white rounded-2xl shadow-sm border border-slate-200/90 p-5 space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="font-extrabold text-base text-slate-900">1–49 號覆蓋總覽表</h3>
+              <p class="text-xs text-slate-500 mt-0.5">右上角數字代表該號碼在 17 注中出現的總次數</p>
+            </div>
+            <div class="flex items-center gap-2 text-[11px] font-semibold">
+              <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">2 次</span>
+              <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800">3 次</span>
+            </div>
+          </div>
+
+          <!-- 7x7 網格呈現 49 個號碼 -->
+          <div id="coverage-grid" class="grid grid-cols-7 gap-2">
+            <!-- 由 JS 動態生成 -->
+          </div>
+
+          <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+            <span>合計選號總格數：17 注 × 6 號 = 102 格</span>
+            <span id="coverage-summary-text" class="font-bold text-hkjc-primary">全部 49 號已覆蓋</span>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- 頁尾 -->
+  <footer class="bg-white border-t border-slate-200 mt-12 py-6">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+      <p>六合彩「17 注聰明組合」算法視覺化工具 • 僅供數學機率研究與娛樂參考</p>
+      <p>博彩要有節制，未滿十八歲人士不得投注或進入可投注的地方。</p>
+    </div>
+  </footer>
+
+  <!-- 核心 JavaScript 邏輯 -->
+  <script>
+    /**
+     * 標準香港六合彩波色對照表
+     */
+    const RED_BALLS = new Set([1, 2, 7, 8, 12, 13, 18, 19, 23, 24, 29, 30, 34, 35, 40, 45, 46]);
+    const BLUE_BALLS = new Set([3, 4, 9, 10, 14, 15, 20, 25, 26, 31, 36, 37, 41, 42, 47, 48]);
+    const GREEN_BALLS = new Set([5, 6, 11, 16, 17, 21, 22, 27, 28, 32, 33, 38, 39, 43, 44, 49]);
+
+    /**
+     * 應用程式全域狀態
+     */
+    const appState = {
+      tickets: [],          // 17 注物件陣列
+      numberCounts: {},     // 1~49 出現次數統計
+      missing49th: null,    // 第 9 注的「第 49 個號碼」
+      lastTwoNums: [],      // 第 17 注的「最後 2 個剩餘號碼」
+      drawnNumbers: null,   // 模擬開獎的 6 個正選號碼 (Array)
+      specialNumber: null,  // 模擬開獎的特別號碼 (Number)
+    };
+
+    /**
+     * Fisher-Yates 洗牌演算法（確保真正均勻隨機）
+     */
+    function shuffleArray(array) {
+      const arr = [...array];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    /**
+     * 取得波色名稱與 CSS 類別
+     */
+    function getBallColorInfo(num) {
+      if (RED_BALLS.has(num)) return { color: 'red', css: 'ball-red', label: '紅' };
+      if (BLUE_BALLS.has(num)) return { color: 'blue', css: 'ball-blue', label: '藍' };
+      return { color: 'green', css: 'ball-green', label: '綠' };
+    }
+
+    /**
+     * 兩位數補零格式化
+     */
+    function padNum(n) {
+      return n < 10 ? `0${n}` : `${n}`;
+    }
+
+    /**
+     * 顯示右上角提示 Toast（不使用 alert）
+     */
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      const bgClass = type === 'error'
+        ? 'bg-rose-600 text-white border-rose-700'
+        : 'bg-slate-900 text-white border-hkjc-gold';
+
+      toast.className = `pointer-events-auto flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg border-l-4 text-sm font-semibold animate-pop ${bgClass}`;
+      toast.innerHTML = `
+        <span>${type === 'error' ? '⚠️' : '✅'}</span>
+        <span>${message}</span>
+      `;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(-6px)';
+        toast.style.transition = 'all 0.25s ease';
+        setTimeout(() => toast.remove(), 250);
+      }, 2800);
+    }
+
+    /**
+     * 核心演算法：嚴格遵循英國巴拉福特大學教授「17 注聰明組合」規則生成
+     */
+    function generateSmart17Tickets() {
+      const all49 = Array.from({ length: 49 }, (_, i) => i + 1);
+      const tickets = [];
+
+      // --- 階段一：第 1 至第 8 注 ---
+      // 從 1–49 中任選 48 個不重複號碼，分成 8 組單式（每組 6 個號碼）
+      const shuffled49 = shuffleArray(all49);
+      const first48 = shuffled49.slice(0, 48);
+      const the49thNumber = shuffled49[48]; // 前 8 注未出現的第 49 個號碼
+
+      for (let i = 0; i < 8; i++) {
+        const group = first48.slice(i * 6, (i + 1) * 6).sort((a, b) => a - b);
+        tickets.push({
+          index: i + 1,
+          stage: 1,
+          stageLabel: '階段一 • 首輪分配',
+          numbers: group,
+          coreNumbers: [] // 此階段無特殊核心標記
+        });
+      }
+
+      // --- 階段二：第 9 注 ---
+      // 放入前 8 注未出現的第 49 個號碼，再從前 48 個號碼中隨機搭配 5 個不重複號碼
+      const random5From48 = shuffleArray(first48).slice(0, 5);
+      const ticket9Nums = [the49thNumber, ...random5From48].sort((a, b) => a - b);
+      tickets.push({
+        index: 9,
+        stage: 2,
+        stageLabel: '階段二 • 補齊第 49 號',
+        numbers: ticket9Nums,
+        coreNumbers: [the49thNumber]
+      });
+
+      // --- 階段三：第 10 至第 16 注 ---
+      // 剔除第 9 注那 5 個任意搭配的號碼，在餘下 44 個號碼中挑出 42 個，分成 7 組不重複單式
+      const excluded5Set = new Set(random5From48);
+      const remaining44 = all49.filter(n => !excluded5Set.has(n)); // 精確 44 個號碼（包含 the49thNumber）
+      const shuffled44 = shuffleArray(remaining44);
+      const selected42 = shuffled44.slice(0, 42);
+      const last2Remaining = shuffled44.slice(42, 44); // 最後剩餘未選的 2 個號碼
+
+      for (let i = 0; i < 7; i++) {
+        const group = selected42.slice(i * 6, (i + 1) * 6).sort((a, b) => a - b);
+        tickets.push({
+          index: 10 + i,
+          stage: 3,
+          stageLabel: '階段三 • 次輪分配',
+          numbers: group,
+          coreNumbers: []
+        });
+      }
+
+      // --- 階段四：第 17 注 ---
+      // 將剛才剩餘未選的 2 個號碼放入，再從其餘 47 個號碼中隨機配搭 4 個不重複號碼湊成 6 個號碼
+      const last2Set = new Set(last2Remaining);
+      const pool47 = all49.filter(n => !last2Set.has(n));
+      const random4From47 = shuffleArray(pool47).slice(0, 4);
+      const ticket17Nums = [...last2Remaining, ...random4From47].sort((a, b) => a - b);
+
+      tickets.push({
+        index: 17,
+        stage: 4,
+        stageLabel: '階段四 • 剩餘 2 號收尾',
+        numbers: ticket17Nums,
+        coreNumbers: [...last2Remaining]
+      });
+
+      // 統計每個號碼出現次數
+      const counts = {};
+      for (let n = 1; n <= 49; n++) counts[n] = 0;
+      tickets.forEach(t => {
+        t.numbers.forEach(n => {
+          counts[n]++;
+        });
+      });
+
+      appState.tickets = tickets;
+      appState.numberCounts = counts;
+      appState.missing49th = the49thNumber;
+      appState.lastTwoNums = last2Remaining.sort((a, b) => a - b);
+    }
+
+    /**
+     * 計算單注在模擬開獎中的獎項
+     * 香港六合彩獎項規則：
+     * 頭獎：6個正選
+     * 二獎：5個正選 + 特別號
+     * 三獎：5個正選
+     * 四獎：4個正選 + 特別號 ($9,600)
+     * 五獎：4個正選 ($640)
+     * 六獎：3個正選 + 特別號 ($320)
+     * 七獎：3個正選 ($40)
+     */
+    function evaluateTicketPrize(ticketNumbers) {
+      if (!appState.drawnNumbers || !appState.specialNumber) return null;
+
+      const drawnSet = new Set(appState.drawnNumbers);
+      let mainMatches = 0;
+      let hasSpecial = false;
+
+      ticketNumbers.forEach(n => {
+        if (drawnSet.has(n)) mainMatches++;
+        if (n === appState.specialNumber) hasSpecial = true;
+      });
+
+      if (mainMatches === 6) return { tier: '頭獎', prize: 8000000, badge: 'bg-amber-500 text-white', desc: '中 6 個字' };
+      if (mainMatches === 5 && hasSpecial) return { tier: '二獎', prize: 500000, badge: 'bg-orange-500 text-white', desc: '中 5 個半字' };
+      if (mainMatches === 5) return { tier: '三獎', prize: 50000, badge: 'bg-rose-500 text-white', desc: '中 5 個字' };
+      if (mainMatches === 4 && hasSpecial) return { tier: '四獎', prize: 9600, badge: 'bg-purple-600 text-white', desc: '中 4 個半字' };
+      if (mainMatches === 4) return { tier: '五獎', prize: 640, badge: 'bg-blue-600 text-white', desc: '中 4 個字' };
+      if (mainMatches === 3 && hasSpecial) return { tier: '六獎', prize: 320, badge: 'bg-emerald-600 text-white', desc: '中 3 個半字' };
+      if (mainMatches === 3) return { tier: '七獎', prize: 40, badge: 'bg-teal-600 text-white', desc: '中 3 個字' };
+
+      return null;
+    }
+
+    /**
+     * 渲染左側四階段 17 注卡片
+     */
+    function renderTickets() {
+      const container = document.getElementById('tickets-container');
+      container.innerHTML = '';
+
+      const stages = [
+        {
+          id: 1,
+          title: '階段一：第 1 – 8 注（任選 48 號分 8 組）',
+          subtitle: `已使用 48 個不重複號碼，唯獨 ${padNum(appState.missing49th)} 號留待第 9 注登場`,
+          headerBg: 'bg-slate-800 text-white',
+          tickets: appState.tickets.filter(t => t.stage === 1)
+        },
+        {
+          id: 2,
+          title: '階段二：第 9 注（補齊第 49 個號碼）',
+          subtitle: `核心號碼 ${padNum(appState.missing49th)} 號（金框）+ 隨機搭配 5 個號碼`,
+          headerBg: 'bg-amber-700 text-white',
+          tickets: appState.tickets.filter(t => t.stage === 2)
+        },
+        {
+          id: 3,
+          title: '階段三：第 10 – 16 注（剔除第 9 注配號後分 7 組）',
+          subtitle: `從餘下 44 號中選出 42 號，最後剩下 ${appState.lastTwoNums.map(padNum).join('、')} 號`,
+          headerBg: 'bg-hkjc-primary text-white',
+          tickets: appState.tickets.filter(t => t.stage === 3)
+        },
+        {
+          id: 4,
+          title: '階段四：第 17 注（最後 2 個剩餘號碼收尾）',
+          subtitle: `核心號碼 ${appState.lastTwoNums.map(padNum).join('、')} 號（金框）+ 隨機配搭 4 個號碼`,
+          headerBg: 'bg-purple-800 text-white',
+          tickets: appState.tickets.filter(t => t.stage === 4)
+        }
+      ];
+
+      const drawnSet = appState.drawnNumbers ? new Set(appState.drawnNumbers) : new Set();
+
+      stages.forEach(stage => {
+        const card = document.createElement('div');
+        card.className = 'bg-white rounded-2xl shadow-sm border border-slate-200/90 overflow-hidden animate-pop';
+
+        let rowsHtml = stage.tickets.map(ticket => {
+          const prizeResult = evaluateTicketPrize(ticket.numbers);
+          const rowHighlight = prizeResult ? 'bg-amber-50/70' : 'hover:bg-slate-50/80';
+
+          const ballsHtml = ticket.numbers.map(num => {
+            const colorInfo = getBallColorInfo(num);
+            const isCore = ticket.coreNumbers.includes(num);
+            const isDrawnMain = drawnSet.has(num);
+            const isDrawnSpecial = appState.specialNumber === num;
+
+            let extraClass = '';
+            if (isDrawnMain) {
+              extraClass = 'ball-matched';
+            } else if (isDrawnSpecial) {
+              extraClass = 'ball-matched-special';
+            } else if (isCore) {
+              extraClass = 'ball-highlight-core';
+            }
+
+            return `
+              <div class="relative inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full text-white font-extrabold text-sm sm:text-base select-none transition-transform ${colorInfo.css} ${extraClass}" title="${padNum(num)} (${colorInfo.label}波)${isCore ? ' - 關鍵核心號碼' : ''}">
+                ${padNum(num)}
+                ${isCore ? '<span class="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 rounded-full bg-amber-400 text-slate-900 text-[9px] font-black flex items-center justify-center shadow">★</span>' : ''}
+              </div>
+            `;
+          }).join('');
+
+          const statusBadge = prizeResult
+            ? `<span class="px-2.5 py-1 rounded-lg text-xs font-extrabold ${prizeResult.badge} shadow-sm whitespace-nowrap">${prizeResult.tier} ($${prizeResult.prize.toLocaleString()})</span>`
+            : `<span class="text-xs font-medium text-slate-400 whitespace-nowrap">$10 單式</span>`;
+
+          return `
+            <div class="px-4 py-3 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 border-b last:border-b-0 border-slate-100 transition ${rowHighlight}">
+              <div class="flex items-center gap-3">
+                <span class="w-12 text-xs font-extrabold text-slate-500 bg-slate-100 px-2 py-1 rounded-lg text-center">
+                  第 ${padNum(ticket.index)} 注
+                </span>
+                <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                  ${ballsHtml}
+                </div>
+              </div>
+              <div class="ml-auto sm:ml-0">
+                ${statusBadge}
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        card.innerHTML = `
+          <div class="${stage.headerBg} px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+            <h3 class="font-bold text-sm sm:text-base">${stage.title}</h3>
+            <span class="text-xs opacity-90">${stage.subtitle}</span>
+          </div>
+          <div class="divide-y divide-slate-100">
+            ${rowsHtml}
+          </div>
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
+    /**
+     * 渲染右側 1–49 號覆蓋總覽表與數據統計
+     */
+    function renderCoverageAndStats() {
+      const grid = document.getElementById('coverage-grid');
+      grid.innerHTML = '';
+
+      let coveredCount = 0;
+      let minFreq = Infinity;
+      let maxFreq = 0;
+      let redCount = 0, blueCount = 0, greenCount = 0;
+
+      const drawnSet = appState.drawnNumbers ? new Set(appState.drawnNumbers) : new Set();
+
+      for (let n = 1; n <= 49; n++) {
+        const count = appState.numberCounts[n] || 0;
+        if (count > 0) coveredCount++;
+        if (count < minFreq) minFreq = count;
+        if (count > maxFreq) maxFreq = count;
+
+        const colorInfo = getBallColorInfo(n);
+        if (colorInfo.color === 'red') redCount += count;
+        else if (colorInfo.color === 'blue') blueCount += count;
+        else greenCount += count;
+
+        const isDrawnMain = drawnSet.has(n);
+        const isDrawnSpecial = appState.specialNumber === n;
+
+        const freqBadgeClass = count >= 3
+          ? 'bg-amber-500 text-white'
+          : 'bg-emerald-600 text-white';
+
+        const ringClass = isDrawnMain
+          ? 'ring-2 ring-yellow-400 bg-yellow-50'
+          : isDrawnSpecial
+            ? 'ring-2 ring-pink-500 bg-pink-50'
+            : 'bg-slate-50 border border-slate-200/80';
+
+        const cell = document.createElement('div');
+        cell.className = `relative rounded-xl p-1.5 flex flex-col items-center justify-center ${ringClass} transition`;
+        cell.innerHTML = `
+          <span class="w-7 h-7 rounded-full text-white text-xs font-bold flex items-center justify-center ${colorInfo.css}">
+            ${padNum(n)}
+          </span>
+          <span class="mt-1 px-1.5 py-0.2 rounded text-[10px] font-extrabold ${freqBadgeClass}">
+            ${count}次
+          </span>
+        `;
+        grid.appendChild(cell);
+      }
+
+      // 更新頂部數據卡片
+      document.getElementById('stat-coverage').textContent = `${coveredCount} / 49 號`;
+      document.getElementById('stat-frequency').textContent = `${minFreq} ~ ${maxFreq} 次`;
+      document.getElementById('stat-colors').textContent = `${redCount} / ${blueCount} / ${greenCount}`;
+    }
+
+    /**
+     * 渲染模擬攪珠結果與派彩明細
+     */
+    function renderSimulationResult() {
+      const emptyState = document.getElementById('draw-empty-state');
+      const activeState = document.getElementById('draw-active-state');
+
+      if (!appState.drawnNumbers || !appState.specialNumber) {
+        emptyState.classList.remove('hidden');
+        activeState.classList.add('hidden');
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+      activeState.classList.remove('hidden');
+
+      // 渲染開獎波珠
+      const ballsContainer = document.getElementById('drawn-balls-display');
+      const mainBallsHtml = appState.drawnNumbers.map(n => {
+        const c = getBallColorInfo(n);
+        return `<span class="w-9 h-9 rounded-full text-white font-extrabold text-sm flex items-center justify-center ${c.css}">${padNum(n)}</span>`;
+      }).join('');
+
+      const spColor = getBallColorInfo(appState.specialNumber);
+      const specialHtml = `
+        <span class="text-slate-400 font-black mx-0.5">+</span>
+        <div class="relative inline-flex">
+          <span class="w-9 h-9 rounded-full text-white font-extrabold text-sm flex items-center justify-center ring-2 ring-pink-500 ring-offset-1 ${spColor.css}">${padNum(appState.specialNumber)}</span>
+          <span class="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-pink-600 text-white text-[9px] font-bold px-1 rounded">特別</span>
+        </div>
+      `;
+      ballsContainer.innerHTML = mainBallsHtml + specialHtml;
+
+      // 計算 17 注總中獎情況
+      let winCount = 0;
+      let totalPrize = 0;
+      const winningTickets = [];
+
+      appState.tickets.forEach(ticket => {
+        const res = evaluateTicketPrize(ticket.numbers);
+        if (res) {
+          winCount++;
+          totalPrize += res.prize;
+          winningTickets.push({ index: ticket.index, ...res });
+        }
+      });
+
+      const cost = 170;
+      const net = totalPrize - cost;
+
+      document.getElementById('sim-win-count').textContent = `${winCount} 注`;
+      document.getElementById('sim-prize-total').textContent = `$${totalPrize.toLocaleString()}`;
+
+      const netEl = document.getElementById('sim-net-profit');
+      if (net >= 0) {
+        netEl.textContent = `+$${net.toLocaleString()}`;
+        netEl.className = 'text-base font-black text-emerald-600 mt-0.5';
+      } else {
+        netEl.textContent = `-$${Math.abs(net).toLocaleString()}`;
+        netEl.className = 'text-base font-black text-rose-600 mt-0.5';
+      }
+
+      const breakdownEl = document.getElementById('sim-prize-breakdown');
+      if (winningTickets.length === 0) {
+        breakdownEl.innerHTML = `<div class="p-2.5 rounded-lg bg-slate-100 text-slate-500 text-center">今期模擬未有單注中 3 個字或以上（雖然 7 個攪出號碼全數在 17 注內，但分散在不同注數）。</div>`;
+      } else {
+        breakdownEl.innerHTML = winningTickets.map(w => `
+          <div class="flex items-center justify-between px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200/80 text-emerald-900">
+            <span class="font-bold">第 ${padNum(w.index)} 注 • ${w.tier} (${w.desc})</span>
+            <span class="font-extrabold">+$${w.prize.toLocaleString()}</span>
+          </div>
+        `).join('');
+      }
+    }
+
+    /**
+     * 全面重新渲染畫面
+     */
+    function refreshAllUI() {
+      renderTickets();
+      renderCoverageAndStats();
+      renderSimulationResult();
+    }
+
+    /**
+     * 一鍵複製全部 17 注號碼到剪貼簿（使用 execCommand 相容 iframe 環境）
+     */
+    function copyAllTicketsToClipboard() {
+      const lines = [
+        '【六合彩 17 注聰明組合（買齊 49 個號碼）】',
+        '總注數：17 注（全注 $170 / 半注 $85）',
+        '----------------------------------------'
+      ];
+
+      appState.tickets.forEach(t => {
+        const numsStr = t.numbers.map(padNum).join(', ');
+        let note = '';
+        if (t.index === 9) note = ` [含第49號: ${padNum(appState.missing49th)}]`;
+        if (t.index === 17) note = ` [含剩餘2號: ${appState.lastTwoNums.map(padNum).join(',')}]`;
+        lines.push(`第 ${padNum(t.index)} 注：${numsStr}${note}`);
+      });
+
+      const text = lines.join('\n');
+
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      document.body.appendChild(textarea);
+      textarea.select();
+
+      try {
+        const ok = document.execCommand('copy');
+        if (ok) {
+          showToast('已複製全部 17 注號碼到剪貼簿！');
+        } else {
+          showToast('複製失敗，請手動選取複製', 'error');
+        }
+      } catch (err) {
+        showToast('瀏覽器不支援自動複製', 'error');
+      } finally {
+        document.body.removeChild(textarea);
+      }
+    }
+
+    /**
+     * 執行隨機模擬攪珠 (6 + 1)
+     */
+    function runRandomSimulation() {
+      const all49 = Array.from({ length: 49 }, (_, i) => i + 1);
+      const shuffled = shuffleArray(all49);
+      appState.drawnNumbers = shuffled.slice(0, 6).sort((a, b) => a - b);
+      appState.specialNumber = shuffled[6];
+      refreshAllUI();
+      showToast('已完成模擬攪珠對獎！');
+    }
+
+    /**
+     * 套用手動輸入的開獎號碼
+     */
+    function applyManualSimulation() {
+      const mainInputs = Array.from(document.querySelectorAll('.manual-num'));
+      const specialInput = document.getElementById('manual-special');
+
+      const mainNums = mainInputs.map(inp => parseInt(inp.value, 10));
+      const specialNum = parseInt(specialInput.value, 10);
+
+      if (mainNums.some(isNaN) || isNaN(specialNum)) {
+        showToast('請完整填寫 6 個正選號碼及 1 個特別號碼', 'error');
+        return;
+      }
+
+      const allEntered = [...mainNums, specialNum];
+      if (allEntered.some(n => n < 1 || n > 49)) {
+        showToast('所有號碼必須介乎 1 至 49 之間', 'error');
+        return;
+      }
+
+      const uniqueSet = new Set(allEntered);
+      if (uniqueSet.size !== 7) {
+        showToast('7 個開獎號碼不能重複！', 'error');
+        return;
+      }
+
+      appState.drawnNumbers = mainNums.sort((a, b) => a - b);
+      appState.specialNumber = specialNum;
+      refreshAllUI();
+      showToast('已套用自訂開獎號碼並完成對獎！');
+    }
+
+    /**
+     * 清除模擬開獎狀態
+     */
+    function clearSimulation() {
+      appState.drawnNumbers = null;
+      appState.specialNumber = null;
+      document.querySelectorAll('.manual-num').forEach(inp => inp.value = '');
+      document.getElementById('manual-special').value = '';
+      refreshAllUI();
+    }
+
+    /**
+     * 初始化事件監聽器與首次生成
+     */
+    window.addEventListener('DOMContentLoaded', () => {
+      // 首次生成 17 注
+      generateSmart17Tickets();
+      refreshAllUI();
+
+      // 重新生成按鈕
+      document.getElementById('btn-generate').addEventListener('click', () => {
+        generateSmart17Tickets();
+        refreshAllUI();
+        showToast('已按 17 注聰明組合規則重新生成號碼！');
+      });
+
+      // 一鍵複製按鈕
+      document.getElementById('btn-copy').addEventListener('click', copyAllTicketsToClipboard);
+
+      // 規則說明摺疊切換
+      const btnRules = document.getElementById('btn-toggle-rules');
+      const rulesContent = document.getElementById('rules-content');
+      const chevron = document.getElementById('icon-rules-chevron');
+      btnRules.addEventListener('click', () => {
+        rulesContent.classList.toggle('hidden');
+        chevron.classList.toggle('rotate-180');
+      });
+
+      // 模擬攪珠按鈕
+      document.getElementById('btn-sim-draw').addEventListener('click', runRandomSimulation);
+
+      // 切換手動輸入面板
+      const btnManual = document.getElementById('btn-toggle-manual');
+      const manualPanel = document.getElementById('manual-draw-panel');
+      btnManual.addEventListener('click', () => {
+        manualPanel.classList.toggle('hidden');
+      });
+
+      // 套用手動號碼與清除按鈕
+      document.getElementById('btn-apply-manual').addEventListener('click', applyManualSimulation);
+      document.getElementById('btn-clear-draw').addEventListener('click', clearSimulation);
+      document.getElementById('btn-reset-draw-top').addEventListener('click', clearSimulation);
+    });
+  </script>
+</body>
+</html>
